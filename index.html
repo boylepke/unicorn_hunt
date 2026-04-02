@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f5e6ff">
+<title>Unicorn Treasure Hunt</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --pink: #ff7ec7;
+  --purple: #a855f7;
+  --light-purple: #e9d5ff;
+  --mint: #6ee7b7;
+  --bg: #f5e6ff;
+  --text: #4a235a;
+  --muted: #9f6fb5;
+  --white-card: rgba(255,255,255,0.82);
+}
+
+body {
+  font-family: -apple-system, 'Segoe UI', sans-serif;
+  background: linear-gradient(160deg, #ffe4f7 0%, #f0d9ff 45%, #ddeeff 100%);
+  min-height: 100vh;
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+/* ---- SCREENS ---- */
+.screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px 32px;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+.screen.active { display: flex; }
+
+/* ---- FLOATING DECO ---- */
+#deco {
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 0; overflow: hidden;
+}
+.dot {
+  position: absolute;
+  border-radius: 50%;
+  opacity: .12;
+  animation: drift linear infinite;
+}
+@keyframes drift {
+  0%   { transform: translateY(110vh) rotate(0deg); }
+  100% { transform: translateY(-10vh) rotate(360deg); }
+}
+
+/* ---- TYPOGRAPHY ---- */
+.title {
+  font-size: 32px; font-weight: 800; text-align: center;
+  background: linear-gradient(135deg, #c026d3, #7c3aed);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 4px;
+}
+.sub { font-size: 15px; color: var(--muted); text-align: center; }
+.hero { font-size: 72px; text-align: center; margin: 12px 0;
+  animation: bob 2.5s ease-in-out infinite; }
+@keyframes bob {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-12px); }
+}
+
+/* ---- CARDS ---- */
+.card {
+  background: var(--white-card);
+  border-radius: 24px;
+  padding: 20px;
+  width: 100%;
+  margin: 8px 0;
+  border: 1.5px solid rgba(168,85,247,.15);
+  position: relative; z-index: 1;
+}
+
+/* ---- BUTTONS ---- */
+.btn {
+  display: block; width: 100%;
+  padding: 16px 24px;
+  border: none; border-radius: 50px;
+  font-size: 17px; font-weight: 700;
+  cursor: pointer; margin: 7px 0;
+  transition: transform .12s, opacity .12s;
+  position: relative; z-index: 1;
+}
+.btn:active { transform: scale(.96); opacity: .9; }
+.btn-primary { background: linear-gradient(135deg,#e040fb,#7c3aed); color: #fff; }
+.btn-green   { background: linear-gradient(135deg,#34d399,#059669); color: #fff; }
+.btn-ghost   { background: rgba(255,255,255,.6); color: var(--text);
+               border: 1.5px solid rgba(168,85,247,.25); }
+.btn-sm      { padding: 11px 18px; font-size: 14px; width: auto; }
+.btn-danger  { background: #fca5a5; color: #7f1d1d; }
+
+input, textarea {
+  width: 100%; padding: 13px 16px;
+  border: 1.5px solid rgba(168,85,247,.25);
+  border-radius: 16px; font-size: 15px;
+  background: rgba(255,255,255,.8); color: var(--text);
+  outline: none; margin: 6px 0;
+  font-family: inherit;
+}
+input:focus, textarea:focus { border-color: var(--purple); }
+textarea { resize: vertical; min-height: 75px; }
+
+/* ---- GPS STATUS PILL ---- */
+.gps-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 14px; border-radius: 20px;
+  background: rgba(255,255,255,.7); font-size: 13px;
+  color: var(--muted); margin: 6px auto;
+  border: 1px solid rgba(168,85,247,.15);
+}
+.gps-led { width: 9px; height: 9px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+.gps-led.ok     { background: #22c55e; animation: ledpulse 2s infinite; }
+.gps-led.wait   { background: #f59e0b; animation: ledpulse 1s infinite; }
+.gps-led.err    { background: #ef4444; }
+@keyframes ledpulse {
+  0%,100% { box-shadow: 0 0 0 0 currentColor; }
+  50%      { box-shadow: 0 0 0 5px transparent; }
+}
+
+/* ---- COMPASS ---- */
+.compass-wrap {
+  position: relative; width: 200px; height: 200px; margin: 12px auto;
+}
+.compass-ring {
+  width: 200px; height: 200px; border-radius: 50%;
+  border: 3px solid rgba(168,85,247,.25);
+  background: radial-gradient(circle at 50% 40%, rgba(255,255,255,.9), rgba(240,210,255,.5));
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.compass-n { position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+             font-size: 11px; font-weight: 700; color: var(--purple); opacity: .7; }
+.compass-s { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+             font-size: 11px; color: var(--muted); opacity: .5; }
+.compass-e { position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+             font-size: 11px; color: var(--muted); opacity: .5; }
+.compass-w { position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+             font-size: 11px; color: var(--muted); opacity: .5; }
+.compass-arrow {
+  width: 0; height: 0; position: relative;
+  transition: transform .55s cubic-bezier(.23,1,.32,1);
+}
+.arrow-up {
+  width: 28px; height: 56px;
+  background: linear-gradient(180deg, #c026d3, #7c3aed);
+  clip-path: polygon(50% 0%, 100% 100%, 50% 78%, 0% 100%);
+  border-radius: 4px;
+}
+.arrow-down {
+  width: 28px; height: 36px;
+  background: rgba(168,85,247,.25);
+  clip-path: polygon(50% 100%, 0% 0%, 50% 22%, 100% 0%);
+  margin-top: -6px;
+}
+.arrow-container {
+  display: flex; flex-direction: column; align-items: center;
+  transition: transform .55s cubic-bezier(.23,1,.32,1);
+}
+
+/* ---- DISTANCE ---- */
+.dist-big {
+  font-size: 52px; font-weight: 900; text-align: center; line-height: 1;
+  background: linear-gradient(135deg, #c026d3, #7c3aed);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.dist-label { font-size: 15px; color: var(--muted); text-align: center; }
+.dir-text   { font-size: 17px; font-weight: 700; color: var(--purple); text-align: center; margin-top: 4px; }
+
+/* ---- WAYPOINT LIST ---- */
+.wp-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,.6);
+  border-radius: 16px; margin: 5px 0;
+  border: 1px solid rgba(168,85,247,.12);
+}
+.wp-num {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg,#e040fb,#7c3aed);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: #fff; font-size: 14px;
+}
+.wp-clue { flex: 1; font-size: 14px; line-height: 1.4; color: var(--text); }
+.wp-del  { background: none; border: none; font-size: 18px; cursor: pointer; padding: 4px; }
+
+/* ---- PROGRESS ---- */
+.progress-row { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 4px; }
+.progress-bar { width: 100%; height: 10px; background: rgba(168,85,247,.15); border-radius: 8px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #e040fb, #7c3aed); border-radius: 8px; transition: width .6s ease; }
+
+/* ---- CELEBRATION OVERLAY ---- */
+#overlay-found {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: linear-gradient(160deg, #ffe4f7, #f0d9ff);
+  flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 24px; text-align: center;
+}
+#overlay-found.show { display: flex; }
+.pop { animation: pop .5s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes pop { 0%{transform:scale(.4);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+
+/* ---- CONFETTI ---- */
+.conf {
+  position: fixed; border-radius: 3px; z-index: 600;
+  animation: fall linear forwards;
+}
+@keyframes fall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(540deg); opacity: 0; }
+}
+
+/* ---- MODAL ---- */
+.modal-bg {
+  display: none; position: fixed; inset: 0; z-index: 400;
+  background: rgba(0,0,0,.35);
+  align-items: flex-end; padding: 0;
+}
+.modal-bg.show { display: flex; }
+.modal-sheet {
+  background: linear-gradient(160deg,#ffe4f7,#f0d9ff);
+  border-radius: 28px 28px 0 0; padding: 24px 20px 36px;
+  width: 100%; max-height: 75vh; overflow-y: auto;
+}
+.modal-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
+.row { display: flex; gap: 10px; }
+.row .btn { flex: 1; margin: 0; }
+
+/* ---- CLUE CARD in play ---- */
+.clue-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--purple); text-transform: uppercase; margin-bottom: 6px; }
+.clue-body  { font-size: 19px; font-weight: 600; line-height: 1.5; color: var(--text); text-align: center; }
+
+/* ---- HOT/COLD ---- */
+.temp-bar { width: 100%; height: 8px; border-radius: 6px; background: rgba(168,85,247,.15); margin: 8px 0; overflow: hidden; }
+.temp-fill { height: 100%; border-radius: 6px; background: #93c5fd; transition: width .7s ease, background .7s ease; }
+</style>
+</head>
+<body>
+
+<!-- Background decoration -->
+<div id="deco"></div>
+
+<!-- ===================== HOME ===================== -->
+<div class="screen active" id="s-home">
+  <div class="hero">🦄</div>
+  <div class="title">Magic Hunt</div>
+  <div class="sub">A unicorn &amp; bunny treasure adventure!</div>
+
+  <div class="card" style="text-align:center;margin-top:14px">
+    <div style="font-size:28px;margin-bottom:8px">🐰 🌈 🌸 ⭐ 🦄</div>
+    <p style="font-size:14px;color:var(--muted);line-height:1.5">
+      The unicorn has hidden magical treasures all around!<br>
+      Can you follow the clues and find them all?
+    </p>
+  </div>
+
+  <button class="btn btn-primary" onclick="startSetup()">🗺️ Create a New Hunt</button>
+  <button class="btn btn-green" id="btn-resume" style="display:none" onclick="resumeHunt()">🎮 Continue Hunt</button>
+  <button class="btn btn-ghost" onclick="openModal('modal-import')">📋 Load a Hunt Code</button>
+</div>
+
+<!-- ===================== SETUP ===================== -->
+<div class="screen" id="s-setup">
+  <div style="font-size:40px;text-align:center;margin:8px 0">🗺️</div>
+  <div class="title" style="font-size:26px">Set Up Hunt</div>
+  <div class="sub">Walk to each hiding spot and mark it!</div>
+
+  <div class="gps-pill" id="setup-gps">
+    <div class="gps-led wait" id="setup-led"></div>
+    <span id="setup-gps-txt">Waiting for GPS…</span>
+  </div>
+
+  <div id="wp-list" style="width:100%">
+    <p style="text-align:center;color:var(--muted);font-size:14px;padding:12px">
+      No hiding spots yet — add one below! 👇
+    </p>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700;color:var(--purple);margin-bottom:6px;font-size:15px">📍 Add Next Spot</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5">
+      Walk to the hiding spot first, then write a clue and tap <strong>Mark Spot</strong>.
+    </p>
+    <textarea id="clue-input" placeholder="🐰 e.g. Find the place where butterflies like to dance near the pretty flowers!"></textarea>
+    <button class="btn btn-primary" style="margin-top:4px" onclick="markSpot()">📍 Mark This Spot!</button>
+  </div>
+
+  <div class="row" style="width:100%;margin-top:6px">
+    <button class="btn btn-ghost btn-sm" onclick="openModal('modal-export')" style="flex:1">📋 Export Code</button>
+    <button class="btn btn-green" id="btn-start" onclick="startHunt()" disabled style="flex:1">🎮 Start!</button>
+  </div>
+  <button class="btn btn-ghost btn-sm" onclick="goHome()" style="margin-top:4px;opacity:.7">← Back</button>
+</div>
+
+<!-- ===================== PLAY ===================== -->
+<div class="screen" id="s-play">
+  <div class="progress-row">
+    <span style="font-size:13px;font-weight:700;color:var(--purple)" id="play-counter">Clue 1 of 7</span>
+    <span id="play-emojis" style="font-size:18px">🦄🐰</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="p-fill" style="width:0%"></div></div>
+
+  <div class="card" style="text-align:center;margin-top:8px">
+    <div class="clue-label">🔍 Your Clue</div>
+    <div class="clue-body" id="play-clue">Follow the rainbow to where the bunny left her basket!</div>
+  </div>
+
+  <div class="gps-pill" id="play-gps" style="margin-top:8px">
+    <div class="gps-led wait" id="play-led"></div>
+    <span id="play-gps-txt">Finding you…</span>
+  </div>
+
+  <div class="compass-wrap">
+    <div class="compass-ring">
+      <span class="compass-n">N</span>
+      <span class="compass-s">S</span>
+      <span class="compass-e">E</span>
+      <span class="compass-w">W</span>
+      <div class="arrow-container" id="compass">
+        <div class="arrow-up"></div>
+        <div class="arrow-down"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dist-big" id="dist-num">--</div>
+  <div class="dist-label" id="dist-lbl">steps away</div>
+
+  <div class="temp-bar"><div class="temp-fill" id="temp-fill" style="width:0%"></div></div>
+  <div class="dir-text" id="dir-txt">Getting signal…</div>
+
+  <button class="btn btn-ghost btn-sm" onclick="confirmSkip()" style="margin-top:18px;opacity:.55;font-size:13px">
+    Skip clue (grown-ups only)
+  </button>
+</div>
+
+<!-- ===================== COMPLETE ===================== -->
+<div class="screen" id="s-complete" style="justify-content:center;text-align:center">
+  <div style="font-size:90px;animation:bob 1.5s ease-in-out infinite">🏆</div>
+  <div class="title" style="margin-top:12px">You Did It!</div>
+  <div class="sub">The whole unicorn kingdom is so proud! 🦄✨</div>
+  <div class="card" style="margin:20px 0;text-align:center">
+    <div style="font-size:36px;margin-bottom:8px">🦄🌈🐰🌸🎉</div>
+    <p style="font-size:17px;font-weight:600;color:var(--purple);line-height:1.5">
+      You found all the magical treasures!<br>
+      The bunnies are dancing with the unicorns! 🥕✨
+    </p>
+  </div>
+  <button class="btn btn-primary" onclick="goHome()">Play Again! 🎮</button>
+</div>
+
+<!-- ===================== OVERLAY: FOUND ===================== -->
+<div id="overlay-found">
+  <div class="pop" id="found-content" style="max-width:380px;width:100%">
+    <div style="font-size:90px" id="found-emoji">🌟</div>
+    <div class="title" id="found-title" style="margin-top:8px">You found it!</div>
+    <div class="sub" id="found-sub" style="margin:8px 0 24px">Amazing explorer!</div>
+    <button class="btn btn-primary" id="found-btn" onclick="advanceClue()">Next Clue! 🐾</button>
+  </div>
+</div>
+
+<!-- ===================== MODAL: IMPORT ===================== -->
+<div class="modal-bg" id="modal-import" onclick="closeSelf(event,'modal-import')">
+  <div class="modal-sheet">
+    <div class="modal-title">📋 Load Hunt Code</div>
+    <p style="font-size:14px;color:var(--muted);margin-bottom:10px">Paste the hunt code a grown-up gave you:</p>
+    <textarea id="import-ta" style="height:110px;font-size:12px;font-family:monospace" placeholder="Paste code here…"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn btn-ghost" onclick="closeModal('modal-import')">Cancel</button>
+      <button class="btn btn-primary" onclick="importHunt()">Load Hunt!</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: EXPORT ===================== -->
+<div class="modal-bg" id="modal-export" onclick="closeSelf(event,'modal-export')">
+  <div class="modal-sheet">
+    <div class="modal-title">📋 Hunt Code</div>
+    <p style="font-size:14px;color:var(--muted);margin-bottom:10px">Copy this and save it somewhere safe — it contains all your hiding spots!</p>
+    <textarea id="export-ta" style="height:110px;font-size:12px;font-family:monospace" readonly></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn btn-ghost" onclick="closeModal('modal-export')">Close</button>
+      <button class="btn btn-primary" onclick="copyCode()">Copy!</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let waypoints = [];         // [{lat,lon,clue}]
+let wpIndex = 0;
+let watchId = null;
+let pos = null;             // current {lat,lon,acc}
+let compassHeading = null;
+let arrived = false;
+
+const ARRIVE_M = 15;        // metres for "found"
+const HOT_M    = 40;        // metres for "getting warm"
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+(function init() {
+  buildDeco();
+  loadHome();
+})();
+
+function buildDeco() {
+  const c = document.getElementById('deco');
+  const colors = ['#c084fc','#f0abfc','#86efac','#fcd34d','#93c5fd','#fda4af'];
+  for (let i = 0; i < 18; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    const sz = 20 + Math.random() * 50;
+    d.style.cssText = `
+      width:${sz}px;height:${sz}px;
+      background:${colors[i % colors.length]};
+      left:${Math.random()*100}%;
+      bottom:${-sz}px;
+      animation-duration:${10+Math.random()*15}s;
+      animation-delay:${Math.random()*12}s;
+    `;
+    c.appendChild(d);
+  }
+}
+
+function loadHome() {
+  show('s-home');
+  stopWatch();
+  const saved = lsGet('hunt');
+  const idx   = parseInt(lsGet('idx') || '0');
+  const btn   = document.getElementById('btn-resume');
+  if (saved && saved.length) {
+    btn.style.display = 'block';
+    btn.textContent = `🎮 Continue Hunt (Clue ${idx+1} of ${saved.length})`;
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════
+//  SCREEN CONTROL
+// ═══════════════════════════════════════════
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function goHome() { show('s-home'); stopWatch(); loadHome(); }
+
+// ═══════════════════════════════════════════
+//  MODALS
+// ═══════════════════════════════════════════
+function openModal(id) {
+  if (id === 'modal-export') buildExport();
+  document.getElementById(id).classList.add('show');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function closeSelf(e, id) { if (e.target.id === id) closeModal(id); }
+
+// ═══════════════════════════════════════════
+//  LOCAL STORAGE
+// ═══════════════════════════════════════════
+function lsGet(k) {
+  try { const v = localStorage.getItem('uth_' + k); return v ? JSON.parse(v) : null; }
+  catch(e) { return null; }
+}
+function lsSet(k, v) {
+  try { localStorage.setItem('uth_' + k, JSON.stringify(v)); } catch(e) {}
+}
+function lsDel(k) { try { localStorage.removeItem('uth_' + k); } catch(e) {} }
+
+// ═══════════════════════════════════════════
+//  GPS UTILS
+// ═══════════════════════════════════════════
+function haversine(lat1,lon1,lat2,lon2) {
+  const R=6371000, φ1=rad(lat1), φ2=rad(lat2);
+  const Δφ=rad(lat2-lat1), Δλ=rad(lon2-lon1);
+  const a=Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function bearing(lat1,lon1,lat2,lon2) {
+  const dL=rad(lon2-lon1);
+  const y=Math.sin(dL)*Math.cos(rad(lat2));
+  const x=Math.cos(rad(lat1))*Math.sin(rad(lat2))-Math.sin(rad(lat1))*Math.cos(rad(lat2))*Math.cos(dL);
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+function rad(d) { return d*Math.PI/180; }
+function cardinal(b) {
+  return ['North','North-East','East','South-East','South','South-West','West','North-West']
+    [Math.round(b/45)%8];
+}
+function steps(m) { return Math.round(m*1.3); }
+
+function stopWatch() {
+  if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+}
+
+// ═══════════════════════════════════════════
+//  COMPASS (device orientation)
+// ═══════════════════════════════════════════
+function startCompass() {
+  const handler = e => {
+    if (e.webkitCompassHeading != null) compassHeading = e.webkitCompassHeading;
+    else if (e.absolute && e.alpha != null) compassHeading = (360-e.alpha)%360;
+  };
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(s => {
+      if (s==='granted') window.addEventListener('deviceorientationabsolute',handler);
+    }).catch(()=>{});
+  } else {
+    window.addEventListener('deviceorientationabsolute', handler);
+    window.addEventListener('deviceorientation', handler);
+  }
+}
+
+// ═══════════════════════════════════════════
+//  SOUND (Web Audio)
+// ═══════════════════════════════════════════
+function chime(type) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const seqs = {
+      mark:    [440,523],
+      arrive:  [523,659,784,1047],
+      win:     [523,659,784,1047,1319,1568,2093]
+    };
+    (seqs[type]||seqs.arrive).forEach((freq,i) => {
+      const osc=ctx.createOscillator(), gain=ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value=freq; osc.type='sine';
+      const t=ctx.currentTime+i*0.14;
+      gain.gain.setValueAtTime(0,t);
+      gain.gain.linearRampToValueAtTime(.28,t+.05);
+      gain.gain.exponentialRampToValueAtTime(.001,t+.45);
+      osc.start(t); osc.stop(t+.45);
+    });
+  } catch(e){}
+}
+
+// ═══════════════════════════════════════════
+//  CONFETTI
+// ═══════════════════════════════════════════
+function confetti() {
+  const cols=['#f472b6','#a855f7','#38bdf8','#86efac','#fde68a','#fb923c'];
+  for (let i=0;i<70;i++) {
+    const el=document.createElement('div');
+    el.className='conf';
+    const sz=6+Math.random()*10;
+    el.style.cssText=`
+      left:${Math.random()*100}vw;top:-10px;
+      width:${sz}px;height:${sz}px;
+      background:${cols[Math.floor(Math.random()*cols.length)]};
+      border-radius:${Math.random()>.5?'50%':'2px'};
+      animation-duration:${1.8+Math.random()*2}s;
+      animation-delay:${Math.random()*.6}s;
+    `;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),5000);
+  }
+}
+
+// ═══════════════════════════════════════════
+//  SETUP SCREEN
+// ═══════════════════════════════════════════
+function startSetup() {
+  waypoints = lsGet('hunt') || [];
+  show('s-setup');
+  renderWPList();
+  watchSetup();
+}
+
+function watchSetup() {
+  const led=document.getElementById('setup-led');
+  const txt=document.getElementById('setup-gps-txt');
+  if (!navigator.geolocation) {
+    led.className='gps-led err'; txt.textContent='GPS not available!'; return;
+  }
+  led.className='gps-led wait'; txt.textContent='Waiting for GPS…';
+  watchId = navigator.geolocation.watchPosition(p => {
+    pos = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy};
+    const a=Math.round(p.coords.accuracy);
+    led.className='gps-led ok';
+    txt.textContent = a<8 ? `GPS locked! ±${a}m` : a<20 ? `GPS ready ±${a}m` : `GPS weak ±${a}m — go outside`;
+  }, () => {
+    led.className='gps-led err'; txt.textContent='GPS error — allow location!';
+  }, {enableHighAccuracy:true,timeout:15000,maximumAge:2000});
+}
+
+function renderWPList() {
+  const list=document.getElementById('wp-list');
+  if (waypoints.length===0) {
+    list.innerHTML='<p style="text-align:center;color:var(--muted);font-size:14px;padding:12px">No hiding spots yet — add one below! 👇</p>';
+  } else {
+    list.innerHTML = waypoints.map((wp,i) => `
+      <div class="wp-item">
+        <div class="wp-num">${i+1}</div>
+        <div class="wp-clue">${escHtml(wp.clue)||'(no clue)'}</div>
+        <button class="wp-del" onclick="delWP(${i})">🗑️</button>
+      </div>
+    `).join('');
+  }
+  const btn=document.getElementById('btn-start');
+  btn.disabled = waypoints.length < 2;
+  btn.textContent = waypoints.length < 2
+    ? `🎮 Need ${2-waypoints.length} more`
+    : `🎮 Start! (${waypoints.length} clues)`;
+}
+
+function delWP(i) {
+  if (!confirm('Delete this hiding spot?')) return;
+  waypoints.splice(i,1);
+  lsSet('hunt', waypoints);
+  renderWPList();
+}
+
+function markSpot() {
+  if (!pos) { alert('GPS not ready yet — wait a moment and try again!'); return; }
+  const clue = document.getElementById('clue-input').value.trim();
+  if (!clue) { alert('Please write a clue before marking the spot!'); return; }
+  waypoints.push({lat:pos.lat, lon:pos.lon, clue});
+  lsSet('hunt', waypoints);
+  lsSet('idx', 0);
+  document.getElementById('clue-input').value = '';
+  renderWPList();
+  chime('mark');
+}
+
+function startHunt() {
+  if (waypoints.length < 2) return;
+  wpIndex = 0;
+  lsSet('idx', 0);
+  stopWatch();
+  launchPlay();
+}
+
+function resumeHunt() {
+  const saved = lsGet('hunt');
+  if (!saved || !saved.length) { alert('No saved hunt found!'); return; }
+  waypoints = saved;
+  wpIndex = parseInt(lsGet('idx') || '0');
+  if (wpIndex >= waypoints.length) wpIndex = 0;
+  launchPlay();
+}
+
+// ═══════════════════════════════════════════
+//  PLAY SCREEN
+// ═══════════════════════════════════════════
+function launchPlay() {
+  show('s-play');
+  arrived = false;
+  startCompass();
+  updatePlayUI();
+  watchPlay();
+}
+
+function updatePlayUI() {
+  const wp = waypoints[wpIndex];
+  document.getElementById('play-counter').textContent = `Clue ${wpIndex+1} of ${waypoints.length}`;
+  document.getElementById('play-clue').textContent = wp.clue;
+  document.getElementById('p-fill').style.width = (wpIndex/waypoints.length*100)+'%';
+  document.getElementById('dist-num').textContent = '--';
+  document.getElementById('dir-txt').textContent = 'Getting signal…';
+  document.getElementById('temp-fill').style.width = '0%';
+  document.getElementById('temp-fill').style.background = '#93c5fd';
+
+  const emojis = ['🦄🐰','🌈🌸','⭐🦋','🍄🌺','🎀🐣'];
+  document.getElementById('play-emojis').textContent = emojis[wpIndex % emojis.length];
+}
+
+function watchPlay() {
+  const led=document.getElementById('play-led');
+  const txt=document.getElementById('play-gps-txt');
+  led.className='gps-led wait'; txt.textContent='Finding you…';
+  arrived = false;
+
+  if (!navigator.geolocation) {
+    led.className='gps-led err'; txt.textContent='GPS not available!'; return;
+  }
+
+  watchId = navigator.geolocation.watchPosition(p => {
+    pos = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy};
+    led.className='gps-led ok';
+    txt.textContent=`GPS ±${Math.round(p.coords.accuracy)}m`;
+    updatePlayTick();
+  }, () => {
+    led.className='gps-led err'; txt.textContent='GPS lost — go outside!';
+  }, {enableHighAccuracy:true,timeout:15000,maximumAge:1500});
+}
+
+function updatePlayTick() {
+  if (arrived) return;
+  const tgt = waypoints[wpIndex];
+  const dist = haversine(pos.lat, pos.lon, tgt.lat, tgt.lon);
+  const brg  = bearing(pos.lat, pos.lon, tgt.lat, tgt.lon);
+  const st   = steps(dist);
+
+  // Distance display
+  document.getElementById('dist-num').textContent = st;
+  document.getElementById('dist-lbl').textContent = st===1 ? 'step away! 🔥' : 'steps away';
+
+  // Arrow
+  let rot = brg;
+  if (compassHeading !== null) rot = brg - compassHeading;
+  document.getElementById('compass').style.transform = `rotate(${rot}deg)`;
+
+  // Direction text
+  if (compassHeading !== null) {
+    document.getElementById('dir-txt').textContent = dist<5 ? '🔥 You\'re right on it!' : 'Follow the arrow! 🐾';
+  } else {
+    document.getElementById('dir-txt').textContent = dist<5 ? '🔥 You\'re right on it!' : `Head ${cardinal(brg)}! 🐾`;
+  }
+
+  // Hot/cold bar
+  const pct = Math.max(0, Math.min(100, 100 - (dist/150)*100));
+  const tf  = document.getElementById('temp-fill');
+  tf.style.width = pct+'%';
+  tf.style.background = dist<ARRIVE_M ? '#f472b6' : dist<HOT_M ? '#fb923c' : '#93c5fd';
+
+  // Arrival!
+  if (dist <= ARRIVE_M) {
+    arrived = true;
+    stopWatch();
+    showFound();
+  }
+}
+
+function showFound() {
+  chime('arrive');
+  confetti();
+  const isLast = wpIndex >= waypoints.length-1;
+  const emojis = ['🌟','⭐','🌈','🎊','🐰','🌸','🎀','🦋'];
+  document.getElementById('found-emoji').textContent = isLast ? '🏆' : emojis[wpIndex % emojis.length];
+  document.getElementById('found-title').textContent = isLast ? 'You found the last treasure!' : 'You found it!';
+  document.getElementById('found-sub').textContent = isLast
+    ? 'INCREDIBLE! You\'re the greatest unicorn explorer! 🦄'
+    : `${waypoints.length-wpIndex-1} more hiding spot${waypoints.length-wpIndex-1!==1?'s':''} to go!`;
+  document.getElementById('found-btn').textContent = isLast ? '🎉 Finish!' : 'Next Clue! 🐾';
+  document.getElementById('overlay-found').classList.add('show');
+}
+
+function advanceClue() {
+  document.getElementById('overlay-found').classList.remove('show');
+  const isLast = wpIndex >= waypoints.length-1;
+  if (isLast) {
+    chime('win');
+    confetti(); setTimeout(confetti,700);
+    show('s-complete');
+    lsDel('idx');
+  } else {
+    wpIndex++;
+    lsSet('idx', wpIndex);
+    updatePlayUI();
+    watchPlay();
+  }
+}
+
+function confirmSkip() {
+  if (!confirm('Skip this clue? (This is only for grown-ups who need to help!)')) return;
+  stopWatch();
+  const isLast = wpIndex >= waypoints.length-1;
+  if (isLast) { show('s-complete'); lsDel('idx'); }
+  else {
+    wpIndex++;
+    lsSet('idx', wpIndex);
+    updatePlayUI();
+    watchPlay();
+  }
+}
+
+// ═══════════════════════════════════════════
+//  EXPORT / IMPORT
+// ═══════════════════════════════════════════
+function buildExport() {
+  if (!waypoints.length) {
+    setTimeout(()=>{
+      document.getElementById('export-ta').value='No hiding spots added yet!';
+    },50);
+    return;
+  }
+  const code = btoa(unescape(encodeURIComponent(JSON.stringify(waypoints))));
+  setTimeout(()=>{ document.getElementById('export-ta').value=code; },50);
+}
+
+function copyCode() {
+  const ta = document.getElementById('export-ta');
+  ta.select();
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(ta.value).then(()=>alert('Copied! 🎉 Save this somewhere safe.'));
+  } else {
+    document.execCommand('copy');
+    alert('Copied! 🎉 Save this somewhere safe.');
+  }
+}
+
+function importHunt() {
+  const code = document.getElementById('import-ta').value.trim();
+  try {
+    const pts = JSON.parse(decodeURIComponent(escape(atob(code))));
+    if (!Array.isArray(pts)||!pts.length) throw new Error();
+    waypoints = pts;
+    lsSet('hunt', waypoints);
+    lsSet('idx', 0);
+    wpIndex = 0;
+    closeModal('modal-import');
+    launchPlay();
+  } catch(e) {
+    alert('That code doesn\'t look right! Please check and try again. 🐰');
+  }
+}
+
+// ═══════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
