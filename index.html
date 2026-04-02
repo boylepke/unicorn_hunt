@@ -597,7 +597,7 @@ function watchSetup() {
     txt.textContent = a<8 ? `GPS locked! ±${a}m` : a<20 ? `GPS ready ±${a}m` : `GPS weak ±${a}m — go outside`;
   }, () => {
     led.className='gps-led err'; txt.textContent='GPS error — allow location!';
-  }, {enableHighAccuracy:true,timeout:15000,maximumAge:2000});
+  }, {enableHighAccuracy:true,timeout:15000,maximumAge:0});
 }
 
 function renderWPList() {
@@ -698,7 +698,7 @@ function watchPlay() {
     updatePlayTick();
   }, () => {
     led.className='gps-led err'; txt.textContent='GPS lost — go outside!';
-  }, {enableHighAccuracy:true,timeout:15000,maximumAge:1500});
+  }, {enableHighAccuracy:true,timeout:15000,maximumAge:0});
 }
 
 function updatePlayTick() {
