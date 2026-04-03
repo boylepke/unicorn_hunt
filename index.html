@@ -403,12 +403,13 @@ textarea { resize: vertical; min-height: 75px; }
 let waypoints = [];         // [{lat,lon,clue}]
 let wpIndex = 0;
 let watchId = null;
+let pollId = null;          // fast 1s polling interval
 let pos = null;             // current {lat,lon,acc}
 let compassHeading = null;
 let arrived = false;
 
-const ARRIVE_M = 5;        // metres for "found" (raised to match real GPS accuracy)
-const HOT_M    = 15;        // metres for "getting warm"
+const ARRIVE_M = 20;        // metres for "found" (raised to match real GPS accuracy)
+const HOT_M    = 10;        // metres for "getting warm"
 const GPS_MIN_ACC = 15;     // ignore readings worse than this (filters out cell/WiFi fixes)
 
 // ═══════════════════════════════════════════
@@ -507,6 +508,14 @@ function steps(m) { return Math.round(m*1.3); }
 
 function stopWatch() {
   if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+  if (pollId  !== null) { clearInterval(pollId); pollId = null; }
+}
+
+function startPoll(onFix) {
+  if (pollId !== null) { clearInterval(pollId); }
+  pollId = setInterval(() => {
+    navigator.geolocation.getCurrentPosition(onFix, ()=>{}, {enableHighAccuracy:true, timeout:2000, maximumAge:0});
+  }, 1000);
 }
 
 // ═══════════════════════════════════════════
@@ -591,7 +600,7 @@ function watchSetup() {
     led.className='gps-led err'; txt.textContent='GPS not available!'; return;
   }
   led.className='gps-led wait'; txt.textContent='Waiting for GPS…';
-  watchId = navigator.geolocation.watchPosition(p => {
+  const handleFix = p => {
     const a=Math.round(p.coords.accuracy);
     if (p.coords.accuracy > GPS_MIN_ACC) {
       led.className='gps-led wait';
@@ -601,9 +610,11 @@ function watchSetup() {
     pos = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy};
     led.className='gps-led ok';
     txt.textContent = a<8 ? `GPS locked! ±${a}m` : `GPS ready ±${a}m`;
-  }, () => {
+  };
+  watchId = navigator.geolocation.watchPosition(handleFix, () => {
     led.className='gps-led err'; txt.textContent='GPS error — allow location!';
   }, {enableHighAccuracy:true,timeout:15000,maximumAge:0});
+  startPoll(handleFix);
 }
 
 function renderWPList() {
@@ -697,7 +708,7 @@ function watchPlay() {
     led.className='gps-led err'; txt.textContent='GPS not available!'; return;
   }
 
-  watchId = navigator.geolocation.watchPosition(p => {
+  const handleFix = p => {
     const a=Math.round(p.coords.accuracy);
     if (p.coords.accuracy > GPS_MIN_ACC) {
       led.className='gps-led wait';
@@ -708,9 +719,11 @@ function watchPlay() {
     led.className='gps-led ok';
     txt.textContent=`GPS ±${a}m`;
     updatePlayTick();
-  }, () => {
+  };
+  watchId = navigator.geolocation.watchPosition(handleFix, () => {
     led.className='gps-led err'; txt.textContent='GPS lost — go outside!';
   }, {enableHighAccuracy:true,timeout:15000,maximumAge:0});
+  startPoll(handleFix);
 }
 
 function updatePlayTick() {
