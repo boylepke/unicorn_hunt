@@ -407,8 +407,9 @@ let pos = null;             // current {lat,lon,acc}
 let compassHeading = null;
 let arrived = false;
 
-const ARRIVE_M = 15;        // metres for "found"
-const HOT_M    = 40;        // metres for "getting warm"
+const ARRIVE_M = 20;        // metres for "found" (raised to match real GPS accuracy)
+const HOT_M    = 10;        // metres for "getting warm"
+const GPS_MIN_ACC = 15;     // ignore readings worse than this (filters out cell/WiFi fixes)
 
 // ═══════════════════════════════════════════
 //  INIT
@@ -591,10 +592,15 @@ function watchSetup() {
   }
   led.className='gps-led wait'; txt.textContent='Waiting for GPS…';
   watchId = navigator.geolocation.watchPosition(p => {
-    pos = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy};
     const a=Math.round(p.coords.accuracy);
+    if (p.coords.accuracy > GPS_MIN_ACC) {
+      led.className='gps-led wait';
+      txt.textContent = `GPS warming up ±${a}m — wait…`;
+      return;
+    }
+    pos = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy};
     led.className='gps-led ok';
-    txt.textContent = a<8 ? `GPS locked! ±${a}m` : a<20 ? `GPS ready ±${a}m` : `GPS weak ±${a}m — go outside`;
+    txt.textContent = a<8 ? `GPS locked! ±${a}m` : `GPS ready ±${a}m`;
   }, () => {
     led.className='gps-led err'; txt.textContent='GPS error — allow location!';
   }, {enableHighAccuracy:true,timeout:15000,maximumAge:0});
@@ -692,9 +698,15 @@ function watchPlay() {
   }
 
   watchId = navigator.geolocation.watchPosition(p => {
+    const a=Math.round(p.coords.accuracy);
+    if (p.coords.accuracy > GPS_MIN_ACC) {
+      led.className='gps-led wait';
+      txt.textContent=`GPS warming up ±${a}m…`;
+      return;
+    }
     pos = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy};
     led.className='gps-led ok';
-    txt.textContent=`GPS ±${Math.round(p.coords.accuracy)}m`;
+    txt.textContent=`GPS ±${a}m`;
     updatePlayTick();
   }, () => {
     led.className='gps-led err'; txt.textContent='GPS lost — go outside!';
