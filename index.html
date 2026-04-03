@@ -407,8 +407,8 @@ let pos = null;             // current {lat,lon,acc}
 let compassHeading = null;
 let arrived = false;
 
-const ARRIVE_M = 20;        // metres for "found" (raised to match real GPS accuracy)
-const HOT_M    = 10;        // metres for "getting warm"
+const ARRIVE_M = 5;        // metres for "found" (raised to match real GPS accuracy)
+const HOT_M    = 15;        // metres for "getting warm"
 const GPS_MIN_ACC = 15;     // ignore readings worse than this (filters out cell/WiFi fixes)
 
 // ═══════════════════════════════════════════
